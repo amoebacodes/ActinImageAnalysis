@@ -7,7 +7,18 @@ import matplotlib.lines as mlines
 
 # %%
 def getEdgeImage(image):
-    return(cv2.Canny(image, 100, 200))
+    edge_image = cv2.Canny(image, np.percentile(image,0.05), np.percentile(image,85))
+    edge_image = cv2.dilate(
+        edge_image,
+        cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5)),
+        iterations=1
+    )
+    edge_image = cv2.erode(
+        edge_image,
+        cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5)),
+        iterations=1
+    )
+    return edge_image
 
 def line_detection_non_vectorized(image, num_rhos=180, num_thetas=180, t_count=220):
   edge_image = getEdgeImage(image)
@@ -26,15 +37,15 @@ def line_detection_non_vectorized(image, num_rhos=180, num_thetas=180, t_count=2
   #
   accumulator = np.zeros((len(rhos), len(rhos)))
   #
-  figure = plt.figure(figsize=(12, 12))
-  subplot1 = figure.add_subplot(1, 4, 1)
-  subplot1.imshow(image)
-  subplot2 = figure.add_subplot(1, 4, 2)
-  subplot2.imshow(edge_image, cmap="gray")
-  subplot3 = figure.add_subplot(1, 4, 3)
-  subplot3.set_facecolor((0, 0, 0))
-  subplot4 = figure.add_subplot(1, 4, 4)
-  subplot4.imshow(image)
+#   figure = plt.figure(figsize=(12, 12))
+#   subplot1 = figure.add_subplot(1, 4, 1)
+#   subplot1.imshow(image)
+#   subplot2 = figure.add_subplot(1, 4, 2)
+#   subplot2.imshow(edge_image, cmap="gray")
+#   subplot3 = figure.add_subplot(1, 4, 3)
+#   subplot3.set_facecolor((0, 0, 0))
+#   subplot4 = figure.add_subplot(1, 4, 4)
+#   subplot4.imshow(image)
   # get Hough space
   for y in range(edge_height): # loop through each pixel in edge image
     for x in range(edge_width):
@@ -48,52 +59,34 @@ def line_detection_non_vectorized(image, num_rhos=180, num_thetas=180, t_count=2
           accumulator[rho_idx][theta_idx] += 1 # tried all theta_idx, but only some rho_idx would be incremented
           ys.append(rho)
           xs.append(theta)
-        subplot3.plot(xs, ys, color="white", alpha=0.05) # plot Hough space
+        # subplot3.plot(xs, ys, color="white", alpha=0.05) # plot Hough space
   # find the lines
+  return sum(sum(accumulator > t_count))
   numLines = 0
   for y in range(accumulator.shape[0]):
     for x in range(accumulator.shape[1]):
       if accumulator[y][x] > t_count: # multiple pixels on the same line in the edge image will have the same rho value in Hough space.
         numLines += 1
         
-        rho = rhos[y] # get this rho
-        theta = thetas[x] # get this theta
-        a = np.cos(np.deg2rad(theta)) # the rest is all for plotting
-        b = np.sin(np.deg2rad(theta))
-        x0 = (a * rho) + edge_width_half
-        y0 = (b * rho) + edge_height_half
-        x1 = int(x0 + 1000 * (-b))
-        y1 = int(y0 + 1000 * (a))
-        x2 = int(x0 - 1000 * (-b))
-        y2 = int(y0 - 1000 * (a))
-        subplot3.plot([theta], [rho], marker='o', color="yellow")
-        subplot4.add_line(mlines.Line2D([x1, x2], [y1, y2]))
+#         rho = rhos[y] # get this rho
+#         theta = thetas[x] # get this theta
+#         a = np.cos(np.deg2rad(theta)) # the rest is all for plotting
+#         b = np.sin(np.deg2rad(theta))
+#         x0 = (a * rho) + edge_width_half
+#         y0 = (b * rho) + edge_height_half
+#         x1 = int(x0 + 1000 * (-b))
+#         y1 = int(y0 + 1000 * (a))
+#         x2 = int(x0 - 1000 * (-b))
+#         y2 = int(y0 - 1000 * (a))
+#         subplot3.plot([theta], [rho], marker='o', color="yellow")
+#         subplot4.add_line(mlines.Line2D([x1, x2], [y1, y2]))
 
-  subplot3.invert_yaxis()
-  subplot3.invert_xaxis()
+#   subplot3.invert_yaxis()
+#   subplot3.invert_xaxis()
 
-  subplot1.title.set_text("Original Image")
-  subplot2.title.set_text("Edge Image")
-  subplot3.title.set_text("Hough Space")
-  subplot4.title.set_text("Detected Lines")
+#   subplot1.title.set_text("Original Image")
+#   subplot2.title.set_text("Edge Image")
+#   subplot3.title.set_text("Hough Space")
+#   subplot4.title.set_text("Detected Lines")
   plt.show()
-  return numLines, accumulator, rhos, thetas
-
-
-if __name__ == "__main__":
-  for i in range(3):
-    image = cv2.imread(f"sample-{i+1}.png")
-    edge_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    edge_image = cv2.GaussianBlur(edge_image, (3, 3), 1)
-    edge_image = cv2.Canny(edge_image, 100, 200)
-    edge_image = cv2.dilate(
-        edge_image,
-        cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5)),
-        iterations=1
-    )
-    edge_image = cv2.erode(
-        edge_image,
-        cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5)),
-        iterations=1
-    )
-    line_detection_non_vectorized(image, edge_image)
+  return numLines#, accumulator, rhos, thetas
